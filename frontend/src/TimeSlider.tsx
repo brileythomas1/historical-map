@@ -3,13 +3,15 @@ interface TimeSliderProps {
   setYear: (year: number) => void;
 }
 
+
+
 function TimeSlider({ year, setYear }: TimeSliderProps) {
   return (
     <div style={{ padding: "10px" }}>
       <input
         type="range"
-        min={1000}
-        max={2000}
+        min={1985}
+        max={1995}
         value={year}
         onChange={e => setYear(Number(e.target.value))}
       />

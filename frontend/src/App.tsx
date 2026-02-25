@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
 import MapView from "./MapView";
-import TimeSlider from "./TimeSlider";
 import type { GeoJSONFeatureCollection } from "./types";
 
 const API_URL = "http://127.0.0.1:5000";
 
-// Debounce hook
+
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -70,8 +69,7 @@ function App() {
 
   return (
     <>
-      <TimeSlider year={year} setYear={setYear} />
-      <MapView year={debouncedYear} events={events} borders={borders} />
+      <MapView setYear={setYear} year={debouncedYear} events={events} borders={borders} />
     </>
   );
 }

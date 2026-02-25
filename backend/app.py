@@ -38,6 +38,7 @@ def get_events(year):
         JOIN sources s ON es.source_id = s.id
     """)
 
+    # Get our events and sources
     with engine.connect() as conn:
         events_rows = conn.execute(query, {"year": year}).fetchall()
         sources_rows = conn.execute(sources_query).fetchall()

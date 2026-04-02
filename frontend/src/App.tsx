@@ -22,6 +22,7 @@ function App() {
 
   const [events, setEvents] = useState<GeoJSONFeatureCollection | null>(null);
   const [borders, setBorders] = useState<GeoJSONFeatureCollection | null>(null);
+  const [loading, setLoading] = useState(false);
 
   // Fetch events
   useEffect(() => {
@@ -29,6 +30,7 @@ function App() {
 
     async function fetchEvents() {
       try {
+        setLoading(true);
         const res = await fetch(`${API_URL}/events/${debouncedYear}`, {
           signal: controller.signal,
         });
@@ -45,30 +47,70 @@ function App() {
     return () => controller.abort(); // cancel previous fetch on next effect
   }, [debouncedYear]);
 
-  // Fetch borders
-  useEffect(() => {
-    const controller = new AbortController();
+useEffect(() => {
+  const controller = new AbortController();
 
-    async function fetchBorders() {
-      try {
-        const res = await fetch(`${API_URL}/borders/${debouncedYear}`, {
-          signal: controller.signal,
-        });
-        const data = await res.json();
-        setBorders(data); // only update state when fetch succeeds
-      } catch (err: any) {
-        if (err.name === "AbortError") return; // ignore aborted fetch
-        console.error(err);
-      }
+  async function fetchEvents() {
+    try {
+      setLoading(true); // start loading
+      const res = await fetch(`${API_URL}/events/${debouncedYear}`, {
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      setEvents(data);
+    } catch (err: any) {
+      if (err.name !== "AbortError") console.error(err);
     }
+  }
 
-    fetchBorders();
+  async function fetchBorders() {
+    try {
+      const res = await fetch(`${API_URL}/borders/${debouncedYear}`, {
+        signal: controller.signal,
+      });
+      const data = await res.json();
+      setBorders(data);
+    } catch (err: any) {
+      if (err.name !== "AbortError") console.error(err);
+    }
+  }
 
-    return () => controller.abort();
-  }, [debouncedYear]);
+  Promise.all([fetchEvents(), fetchBorders()]).finally(() => setLoading(false));
+
+  return () => controller.abort();
+}, [debouncedYear]);
 
   return (
     <>
+    {loading && (
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      width: "100vw",
+      height: "100vh",
+      backgroundColor: "rgba(0,0,0,0.35)",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      zIndex: 5000,
+      pointerEvents: "none",
+      transition: "opacity 0.3s ease",
+    }}
+  >
+    <div
+      style={{
+        width: 60,
+        height: 60,
+        border: "6px solid #ccc",
+        borderTop: "6px solid #333",
+        borderRadius: "50%",
+        animation: "spin 1s linear infinite",
+      }}
+    />
+  </div>
+)}
       <MapView setYear={setYear} year={debouncedYear} events={events} borders={borders} />
     </>
   );

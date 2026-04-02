@@ -16,7 +16,7 @@ function TimeSlider({ year, setYear }: TimeSliderProps) {
 
     const interval = setInterval(() => {
       setYear(year < maxYear ? year + 1 : minYear);
-    }, 800);
+    }, 2000);
 
     return () => clearInterval(interval);
   }, [playing, setYear, year]);

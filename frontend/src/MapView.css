@@ -1,0 +1,8 @@
+.sidebar::after {
+  content: "";
+  position: sticky;
+  bottom: 0;
+  height: 40px;
+  display: block;
+  background: linear-gradient(to top, white, transparent);
+}

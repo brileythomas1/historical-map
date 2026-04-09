@@ -14,6 +14,13 @@ interface MapViewProps {
   borders: GeoJSONFeatureCollection | null;
 }
 
+const SATELLITE_URL =
+  "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
+
+const OSM_URL =
+  "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png";
+
+// Map country name to a consistent color using a hash function
 function getCountryColor(country: string): string {
   let hash = 0;
   for (let i = 0; i < country.length; i++) {
@@ -22,6 +29,7 @@ function getCountryColor(country: string): string {
   return `hsl(${hash % 360}, 70%, 50%)`;  
 }
 
+// Sync mini-map view and draw rectangle for current main map bounds
 function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
   const miniMap = useMap();
 
@@ -65,6 +73,7 @@ function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
   return null;
 }
 
+// Color country borders based on country name
 const borderStyle = (feature: Feature) => {
   const countryName = feature.properties?.country ?? "Unknown";
   return {
@@ -83,8 +92,8 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const eventLayerRef = useRef<L.GeoJSON<any> | null>(null);
   const mapRef = useRef<L.Map | null>(null);
 
+  const [mapMode, setMapMode] = useState<"standard" | "satellite">("standard");
   const [selectedMarker, setSelectedMarker] = useState<null | any>(null);
-
   const [expandedImage, setExpandedImage] = useState<null | { url: string; title: string }>(null);
 
   // ESC key support
@@ -135,10 +144,13 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
       // Prevent map from bouncing back when hitting bounds
       maxBoundsViscosity={1.0}>
         <TileLayer
-          attribution="© OpenStreetMap contributors"
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution={
+            mapMode === "satellite"
+              ? "Tiles © Esri"
+              : "© OpenStreetMap contributors"
+          }
+          url={mapMode === "satellite" ? SATELLITE_URL : OSM_URL}
         />
-
         <GeoJSON
           ref={borderLayerRef}
           data={borders as GeoJSON.GeoJsonObject}
@@ -151,8 +163,27 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           data={events as GeoJSON.GeoJsonObject}
           onEachFeature={onEachEventFeature as any}
         />
+        <button
+          onClick={() =>
+            setMapMode(mapMode === "standard" ? "satellite" : "standard")
+          }
+          style={{
+            position: "absolute",
+            top: 20,
+            right: 20,
+            zIndex: 1000,
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "none",
+            background: "#111",
+            color: "white",
+            cursor: "pointer",
+          }}
+        >
+          {mapMode === "standard" ? "Satellite" : "Map"}
+        </button>
       </MapContainer>
-      {/* minimap */}
+      {/* Minimap */}
       {mapRef.current && (
           <div
             style={{
@@ -179,7 +210,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
               style={{ width: "100%", height: "100%" }}
             >
               <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                url={mapMode === "satellite" ? SATELLITE_URL : OSM_URL}
               />
               <MiniMapBounds parentMap={mapRef.current} />
             </MapContainer>
@@ -281,7 +312,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
                               <p style={{ margin: "4px 0" }}>{s.description}</p>
                             )}
 
-                            {/* PHOTO (click to expand) */}
+                            {/* Photo */}
                             {s.content_type === "photo" && (
                               <img
                                 src={s.url}
@@ -299,7 +330,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
                               />
                             )}
 
-                            {/* VIDEO */}
+                            {/* Video */}
                             {s.content_type === "video" && (
                               <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden" }}>
                                 <iframe
@@ -314,7 +345,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
                               </div>
                             )}
 
-                            {/* OTHER */}
+                            {/* Other (shouldn't happen right now) */}
                             {s.content_type !== "photo" &&
                               s.content_type !== "video" && (
                                 <a
@@ -336,7 +367,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
         </div>
       )}
 
-      {/* IMAGE MODAL */}
+      {/* Expand Image */}
       {expandedImage && (
         <div
           onClick={() => setExpandedImage(null)}

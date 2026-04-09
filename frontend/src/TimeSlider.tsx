@@ -37,7 +37,6 @@ function TimeSlider({ year, setYear }: TimeSliderProps) {
         fontFamily: "system-ui, -apple-system, sans-serif",
       }}
     >
-      {/* Header Row */}
       <div
         style={{
           display: "flex",
@@ -72,8 +71,6 @@ function TimeSlider({ year, setYear }: TimeSliderProps) {
           {playing ? "Pause" : "Play"}
         </button>
       </div>
-
-      {/* Slider */}
       <input
         type="range"
         min={minYear}
@@ -90,8 +87,6 @@ function TimeSlider({ year, setYear }: TimeSliderProps) {
           cursor: "pointer",
         }}
       />
-
-      {/* Min / Max Labels */}
       <div
         style={{
           display: "flex",

@@ -6,3 +6,7 @@
   display: block;
   background: linear-gradient(to top, white, transparent);
 }
+
+.leaflet-container .leaflet-control-zoom {
+  transform: translateX(30px);
+}

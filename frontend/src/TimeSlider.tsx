@@ -26,7 +26,7 @@ function TimeSlider({ year, setYear }: TimeSliderProps) {
       style={{
         position: "absolute",
         bottom: 20,
-        left: 20,
+        left: "36%",
         width: 340,
         padding: 18,
         background: "rgba(255, 255, 255, 0.92)",

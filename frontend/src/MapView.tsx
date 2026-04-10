@@ -14,6 +14,7 @@ interface MapViewProps {
   borders: GeoJSONFeatureCollection | null;
 }
 
+// Two different tile layers for standard and satellite views
 const SATELLITE_URL =
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}";
 
@@ -28,6 +29,8 @@ function getCountryColor(country: string): string {
   }
   return `hsl(${hash % 360}, 70%, 50%)`;  
 }
+
+
 
 // Sync mini-map view and draw rectangle for current main map bounds
 function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
@@ -85,8 +88,7 @@ const borderStyle = (feature: Feature) => {
   };
 };
 
-
-
+// Main MapView component
 function MapView({ year, setYear, events, borders }: MapViewProps) {
   const borderLayerRef = useRef<L.GeoJSON<any> | null>(null);
   const eventLayerRef = useRef<L.GeoJSON<any> | null>(null);
@@ -95,8 +97,29 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const [mapMode, setMapMode] = useState<"standard" | "satellite">("standard");
   const [selectedMarker, setSelectedMarker] = useState<null | any>(null);
   const [expandedImage, setExpandedImage] = useState<null | { url: string; title: string }>(null);
+  const [newsFeed, setNewsFeed] = useState(false);
 
-  // ESC key support
+  // Iterate through events to find the one with the matching ID and return its location
+  function findEventLocation(eventId: string) {
+  if (!events?.features) return null;
+
+  for (const feature of events.features as any[]) {
+    const match = feature.properties?.events?.find(
+      (e: any) => e.id === eventId
+    );
+
+    if (match) {
+      return {
+        event: match,
+        geometry: feature.geometry,
+      };
+    }
+  }
+
+  return null;
+}
+
+  // ESC key support for closing expanded images
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -107,6 +130,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
+  // Update border and event layers when data changes
   useEffect(() => {
     if (borderLayerRef.current && borders) {
       borderLayerRef.current.clearLayers();
@@ -121,28 +145,49 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
     }
   }, [events]);
 
+  // Bind tooltips to country borders and click handlers to event markers
   const onEachBorderFeature = (feature: Feature, layer: L.Layer) => {
     if (feature.properties && "country" in feature.properties) {
       layer.bindTooltip(feature.properties.country, { sticky: true, interactive: true, permanent: false, direction: "auto" });
     }
   };
 
+  // Select marker and show sidebar when clicking on event features
   const onEachEventFeature = (feature: Feature, layer: L.Layer) => {
     if (feature.properties?.events) {
       layer.on("click", () => setSelectedMarker(feature.properties));
     }
   };
 
+  // Sort events by date for news feed
+  const sortedEvents = (() => {
+  if (!events?.features) return [];
+
+  return events.features
+    .flatMap((feature: any) => feature.properties?.events || [])
+    .sort((a: any, b: any) => {
+      const dateA = new Date(
+        a.start_year,
+        (a.start_month || 1) - 1,
+        a.start_day || 1
+      ).getTime();
+
+      const dateB = new Date(
+        b.start_year,
+        (b.start_month || 1) - 1,
+        b.start_day || 1
+      ).getTime();
+
+      return dateA - dateB;
+    });
+})();
   return (
-    <div style={{ position: "relative" }}>
+    <div style={{ position: "relative", height: "100vh", overflow: "hidden" }}>
       <MapContainer 
       center={[20, 0]} zoom={2} 
-      style={{ height: "100vh", width: "100%" }} 
-      ref ={mapRef}
-      // Limit panning to world bounds
-      maxBounds={[ [-60, -180], [85, 180],  ]}
-      // Prevent map from bouncing back when hitting bounds
-      maxBoundsViscosity={1.0}>
+      style={{ height: "100%", width: "100%" }} 
+      ref ={mapRef}>
+        {/* Tile Layer to select satellite or normal mode */}
         <TileLayer
           attribution={
             mapMode === "satellite"
@@ -183,6 +228,108 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           {mapMode === "standard" ? "Satellite" : "Map"}
         </button>
       </MapContainer>
+      {/* Toggle News Feed Tab */}
+      <div
+        onClick={() => setNewsFeed(!newsFeed)}
+        style={{
+          position: "absolute",
+          top: "50%",
+          left: newsFeed ? 328 : 0,
+          transform: "translateY(-50%)",
+          zIndex: 1500,
+          background: "#111",
+          color: "white",
+          padding: "10px 8px",
+          borderTopRightRadius: 8,
+          borderBottomRightRadius: 8,
+          cursor: "pointer",
+          transition: "left 0.3s ease",
+          fontSize: 12,
+          writingMode: "vertical-rl",
+          textOrientation: "mixed",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+        }}
+      >
+        {newsFeed ? "Close" : "News"}
+      </div>
+      {/* News Feed */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: newsFeed ? 0 : -300,
+          width: 300,
+          cursor: "pointer",
+          transition: "transform 0.15s ease", 
+          height: "100%",
+          background: "rgba(255,255,255,0.9)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          overflowY: "auto",
+          padding: "16px 14px",
+          boxShadow: "10px 0 30px rgba(0,0,0,0.15)",
+          zIndex: 1400,
+          fontFamily: "system-ui, -apple-system, sans-serif",
+        }
+      }
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+      }}
+      >
+        <h2 style={{ fontSize: 16, marginBottom: 12 }}>
+          {year} Events
+        </h2>
+        {sortedEvents.map((event: any) => (
+          <div
+            key={event.id}
+            style={{
+              marginBottom: 16,
+              padding: 12,
+              borderRadius: 10,
+              background: "rgba(255,255,255,0.7)",
+              boxShadow: "0 4px 10px rgba(0,0,0,0.08)",
+              border: "1px solid rgba(0,0,0,0.05)",
+            }}
+            onClick={() => {
+            const result = findEventLocation(event.id);
+            if (!result || !mapRef.current) return;
+
+            setSelectedMarker({
+              events: [result.event],
+            });
+
+            {/* Fly to event location on map when clicking news feed item */}
+            const coords = result.geometry?.coordinates;
+
+            if (coords) {
+              const [lng, lat] = coords;
+              mapRef.current.flyTo([lat, lng], 5, {
+                duration: 0.4,
+              });
+            }
+          }}
+          >
+            <h3 style={{ margin: "0 0 4px", fontSize: 14 }}>
+              {event.title}
+            </h3>
+
+            <p style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
+              {[
+                event.start_month?.toString().padStart(2, "0"),
+                event.start_day?.toString().padStart(2, "0"),
+                event.start_year,
+              ]
+                .filter(Boolean)
+                .join("-")}
+            </p>
+
+
+          </div>
+        ))}
+      </div>
       {/* Minimap */}
       {mapRef.current && (
           <div
@@ -330,7 +477,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
                               />
                             )}
 
-                            {/* Video */}
+                            {/* Video (currently Youtube only) */}
                             {s.content_type === "video" && (
                               <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden" }}>
                                 <iframe
@@ -338,14 +485,13 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
                                   height="200"
                                   src={`https://www.youtube.com/embed/${s.url}`}
                                   title={s.title}
-                                  frameBorder="0"
                                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                   allowFullScreen
                                 />
                               </div>
                             )}
 
-                            {/* Other (shouldn't happen right now) */}
+                            {/* Other (shouldn't happen but just in case) */}
                             {s.content_type !== "photo" &&
                               s.content_type !== "video" && (
                                 <a

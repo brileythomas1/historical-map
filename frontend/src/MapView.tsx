@@ -412,7 +412,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
             fontFamily: "system-ui",
           }}
         >
-          <h3>🎯 Find this event</h3>
+          <h3>Find this event</h3>
 
           <p><b>Year:</b> {targetEvent.start_year}</p>
           <p><b>Title:</b> {targetEvent.title}</p>
@@ -459,13 +459,13 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
             fontFamily: "system-ui",
           }}
         >
-          <h3>✅ Completed!</h3>
+          <h3>Completed!</h3>
           <p>Time: {(elapsed / 1000).toFixed(1)}s</p>
           <p><b>Your reflection:</b></p>
           <p>{userAnswer}</p>
 
           <button onClick={() => setGameMode("idle")}>
-            Play again
+            End game
           </button>
         </div>
       )}

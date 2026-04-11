@@ -426,6 +426,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
             onChange={(e) => setUserAnswer(e.target.value)}
             placeholder="What did you learn from the sources?"
             style={{ width: "100%", height: 80, marginTop: 8 }}
+            maxLength = {1000}
           />
 
           <button

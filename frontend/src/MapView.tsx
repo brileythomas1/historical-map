@@ -98,6 +98,51 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const [selectedMarker, setSelectedMarker] = useState<null | any>(null);
   const [expandedImage, setExpandedImage] = useState<null | { url: string; title: string }>(null);
   const [newsFeed, setNewsFeed] = useState(false);
+  const [gameMode, setGameMode] = useState<"idle" | "active" | "completed">("idle");
+  const [targetEvent, setTargetEvent] = useState<any | null>(null);
+  const [elapsed, setElapsed] = useState<number>(0);
+  const [userAnswer, setUserAnswer] = useState("");
+
+  // Get random event from current events data for game mode
+  function getRandomEvent() {
+    if (!events?.features?.length) return null;
+
+    const allEvents = events.features.flatMap(
+      (f: any) => f.properties?.events || []
+    );
+
+    if (!allEvents.length) return null;
+
+    return allEvents[Math.floor(Math.random() * allEvents.length)];
+  }
+
+  function startGame() {
+    const event = getRandomEvent();
+    if (!event) return;
+
+    setTargetEvent(event);
+    setGameMode("active");
+    setUserAnswer("");
+
+    const now = Date.now();
+    setElapsed(0);
+
+    const interval = setInterval(() => {
+      setElapsed(Date.now() - now);
+    }, 100);
+
+    // store interval on window for cleanup simplicity
+    (window as any).__gameTimer = interval;
+  }
+
+  // End game and show results
+  function submitGame() {
+    setGameMode("completed");
+
+    if ((window as any).__gameTimer) {
+      clearInterval((window as any).__gameTimer);
+    }
+}
 
   // Iterate through events to find the one with the matching ID and return its location
   function findEventLocation(eventId: string) {
@@ -230,7 +275,10 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
       </MapContainer>
       {/* Toggle News Feed Tab */}
       <div
-        onClick={() => setNewsFeed(!newsFeed)}
+          onClick={() => {
+            if (gameMode === "active") return;
+            setNewsFeed(!newsFeed);
+          }}
         style={{
           position: "absolute",
           top: "50%",
@@ -330,6 +378,97 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           </div>
         ))}
       </div>
+      {gameMode === "idle" && (
+        <button
+          onClick={startGame}
+          style={{
+            position: "absolute",
+            top: 70,
+            right: 20,
+            zIndex: 900,
+            padding: "10px 12px",
+            borderRadius: 8,
+            background: "#1a1a1a",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Start Game
+        </button>
+      )}
+      {gameMode === "active" && targetEvent && (
+        <div
+          style={{
+            position: "absolute",
+            top: 100,
+            left: 40,
+            zIndex: 2000,
+            width: 320,
+            background: "rgba(255,255,255,0.95)",
+            padding: 12,
+            borderRadius: 12,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+            fontFamily: "system-ui",
+          }}
+        >
+          <h3>🎯 Find this event</h3>
+
+          <p><b>Year:</b> {targetEvent.start_year}</p>
+          <p><b>Title:</b> {targetEvent.title}</p>
+
+          <p style={{ marginTop: 10 }}>
+            ⏱ {(elapsed / 1000).toFixed(1)}s
+          </p>
+
+          <textarea
+            value={userAnswer}
+            onChange={(e) => setUserAnswer(e.target.value)}
+            placeholder="What did you learn from the sources?"
+            style={{ width: "100%", height: 80, marginTop: 8 }}
+          />
+
+          <button
+            onClick={submitGame}
+            style={{
+              marginTop: 8,
+              width: "100%",
+              padding: 8,
+              borderRadius: 8,
+              background: "#111",
+              color: "white",
+              border: "none",
+            }}
+          >
+            Submit
+          </button>
+        </div>
+      )}
+      {gameMode === "completed" && targetEvent && (
+        <div
+          style={{
+            position: "absolute",
+            top: 100,
+            left: 40,
+            zIndex: 2000,
+            width: 320,
+            background: "white",
+            padding: 12,
+            borderRadius: 12,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+            fontFamily: "system-ui",
+          }}
+        >
+          <h3>✅ Completed!</h3>
+          <p>Time: {(elapsed / 1000).toFixed(1)}s</p>
+          <p><b>Your reflection:</b></p>
+          <p>{userAnswer}</p>
+
+          <button onClick={() => setGameMode("idle")}>
+            Play again
+          </button>
+        </div>
+      )}
       {/* Minimap */}
       {mapRef.current && (
           <div

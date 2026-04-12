@@ -15,7 +15,7 @@ The application has been tested to work with the following components:
 
 [Python 3.11](https://www.python.org/downloads/)
 
-Step 1: Download and install all components.
+Step 1: Download and install the above components.
 
 Step 2: To set up the database, run these command in the terminal.
 
@@ -42,6 +42,8 @@ Step 6: Open a separate terminal and run these commands to start the backend.
 ```cd backend```
 
 ```python3.11 app.py```
+
+Step 7: Navigate to the URL displayed in the terminal after Step 5 to view the app.
 
 ## Acknowledgements
 Credit to ETH Zurich for their work in compiling the [CShapes 2.0 dataset](https://icr.ethz.ch/data/cshapes/), which this project made ample use of in its own database.

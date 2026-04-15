@@ -102,6 +102,8 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const [targetEvent, setTargetEvent] = useState<any | null>(null);
   const [elapsed, setElapsed] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState("");
+  const [markersVisible, setMarkersVisible] = useState(true);
+  const [bestTime, setBestTime] = useState<number | null>(null);
 
   // Get random event from current events data for game mode
   function getRandomEvent() {
@@ -142,6 +144,11 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
     if ((window as any).__gameTimer) {
       clearInterval((window as any).__gameTimer);
     }
+
+  setBestTime(prevBest => {
+    if (prevBest === null) return elapsed;
+    return Math.min(prevBest, elapsed);
+  });
 }
 
   // Iterate through events to find the one with the matching ID and return its location
@@ -248,11 +255,13 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           onEachFeature={onEachBorderFeature as any}
         />
 
-        <GeoJSON
-          ref={eventLayerRef}
-          data={events as GeoJSON.GeoJsonObject}
-          onEachFeature={onEachEventFeature as any}
-        />
+        {markersVisible && (
+          <GeoJSON
+            ref={eventLayerRef}
+            data={events as GeoJSON.GeoJsonObject}
+            onEachFeature={onEachEventFeature as any}
+          />
+        )}
         <button
           onClick={() =>
             setMapMode(mapMode === "standard" ? "satellite" : "standard")
@@ -305,10 +314,10 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
         style={{
           position: "absolute",
           top: 0,
-          left: newsFeed ? 0 : -300,
+          transform: newsFeed ? "translateX(0)" : "translateX(-100%)",
+          transition: "transform 0.3s ease",
           width: 300,
           cursor: "pointer",
-          transition: "transform 0.15s ease", 
           height: "100%",
           background: "rgba(255,255,255,0.9)",
           backdropFilter: "blur(14px)",
@@ -397,6 +406,23 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           Start Game
         </button>
       )}
+          <button
+      onClick={() => setMarkersVisible(v => !v)}
+      style={{
+        position: "absolute",
+        top: 120,
+        right: 20,
+        zIndex: 1000,
+        padding: "8px 12px",
+        borderRadius: 8,
+        border: "none",
+        background: "#111",
+        color: "white",
+        cursor: "pointer",
+      }}
+    >
+      {markersVisible ? "Hide Markers" : "Show Markers"}
+    </button>
       {gameMode === "active" && targetEvent && (
         <div
           style={{
@@ -462,10 +488,23 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
         >
           <h3>Completed!</h3>
           <p>Time: {(elapsed / 1000).toFixed(1)}s</p>
+          <p>
+          <b>Best time:</b>{" "}
+          {bestTime !== null ? `${(bestTime / 1000).toFixed(1)}s` : "—"}
+          </p>
           <p><b>Your reflection:</b></p>
           <p>{userAnswer}</p>
 
-          <button onClick={() => setGameMode("idle")}>
+          <button onClick={() => setGameMode("idle")}             
+          style={{
+              marginTop: 8,
+              width: "100%",
+              padding: 8,
+              borderRadius: 8,
+              background: "#111",
+              color: "white",
+              border: "none",
+            }}>
             End game
           </button>
         </div>

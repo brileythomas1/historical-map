@@ -93,6 +93,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const borderLayerRef = useRef<L.GeoJSON<any> | null>(null);
   const eventLayerRef = useRef<L.GeoJSON<any> | null>(null);
   const mapRef = useRef<L.Map | null>(null);
+  const dragRef = useRef({ startX: 0, startY: 0, dragging: false });
 
   const [mapMode, setMapMode] = useState<"standard" | "satellite">("standard");
   const [selectedMarker, setSelectedMarker] = useState<null | any>(null);
@@ -104,6 +105,38 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const [userAnswer, setUserAnswer] = useState("");
   const [markersVisible, setMarkersVisible] = useState(true);
   const [bestTime, setBestTime] = useState<number | null>(null);
+  const [gamePos, setGamePos] = useState({ x: 40, y: 100 });
+  
+
+  // Stuff to allow user to drag the game prompt around the screen while playing
+  function onMouseDown(e: React.MouseEvent) {
+    dragRef.current.dragging = true;
+    dragRef.current.startX = e.clientX - gamePos.x;
+    dragRef.current.startY = e.clientY - gamePos.y;
+  }
+
+  function onMouseMove(e: MouseEvent) {
+    if (!dragRef.current.dragging) return;
+
+    setGamePos({
+      x: e.clientX - dragRef.current.startX,
+      y: e.clientY - dragRef.current.startY,
+    });
+  }
+
+  function onMouseUp() {
+    dragRef.current.dragging = false;
+  }
+
+  useEffect(() => {
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+
+    return () => {
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [gamePos]);
 
   // Get random event from current events data for game mode
   function getRandomEvent() {
@@ -136,6 +169,20 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
     // store interval on window for cleanup simplicity
     (window as any).__gameTimer = interval;
   }
+
+  function quitGame() {
+  // stop timer
+  if ((window as any).__gameTimer) {
+    clearInterval((window as any).__gameTimer);
+    (window as any).__gameTimer = null;
+  }
+
+  // reset game state
+  setGameMode("idle");
+  setTargetEvent(null);
+  setUserAnswer("");
+  setElapsed(0);
+}
 
   // End game and show results
   function submitGame() {
@@ -427,8 +474,9 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
         <div
           style={{
             position: "absolute",
-            top: 100,
-            left: 40,
+            top: 0,
+            left: 0,
+            transform: `translate(${gamePos.x}px, ${gamePos.y}px)`,
             zIndex: 2000,
             width: 320,
             background: "rgba(255,255,255,0.95)",
@@ -438,8 +486,20 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
             fontFamily: "system-ui",
           }}
         >
-          <h3>Find this event</h3>
-
+          <div
+            onMouseDown={onMouseDown}
+            style={{
+              cursor: "grab",
+              padding: "6px 8px",
+              marginBottom: 8,
+              borderRadius: 6,
+              background: "rgba(0,0,0,0.05)",
+              fontWeight: 600,
+              userSelect: "none",
+            }}
+          >
+            Find This Event! (drag here)
+          </div>
           <p><b>Year:</b> {targetEvent.start_year}</p>
           <p><b>Title:</b> {targetEvent.title}</p>
 
@@ -469,6 +529,21 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           >
             Submit
           </button>
+          <button
+          onClick={quitGame}
+          style={{
+            marginTop: 8,
+            width: "100%",
+            padding: 8,
+            borderRadius: 8,
+            background: "#b00020",
+            color: "white",
+            border: "none",
+            cursor: "pointer",
+          }}
+        >
+          Quit Game
+        </button>
         </div>
       )}
       {gameMode === "completed" && targetEvent && (
@@ -505,7 +580,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
               color: "white",
               border: "none",
             }}>
-            End game
+            End Game
           </button>
         </div>
       )}

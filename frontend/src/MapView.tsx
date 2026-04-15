@@ -126,11 +126,20 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const [guessLocation, setGuessLocation] = useState<L.LatLng | null>(null);
   const [actualLocation, setActualLocation] = useState<L.LatLng | null>(null);
   const [distance, setDistance] = useState<number | null>(null);
+  const [distanceUnit, setDistanceUnit] = useState<"km" | "mi">("km");
 
   // Reset marker visibility after game is done
   useEffect(() => {
     if (gameMode === "idle") setMarkersVisible(true);
   }, [gameMode]);
+
+  // Convert distance to selected unit and format for display
+  function formatDistance(meters: number) {
+  if (distanceUnit === "km") {
+    return `${(meters / 1000).toFixed(1)} km`;
+  }
+  return `${(meters / 1609.344).toFixed(1)} mi`;
+}
 
   // Stuff to allow user to drag the game prompt around the screen while playing
   function onMouseDown(e: React.MouseEvent) {
@@ -697,11 +706,47 @@ function submitGuess() {
           <button 
             disabled={!guessLocation}
             onClick={submitGuess}
+            style={{
+              zIndex: 1000,
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "none",
+              background: guessLocation ? "#111" : "#555",
+              color: guessLocation ? "white" : "#aaa",
+              cursor: guessLocation ? "pointer" : "not-allowed",
+              opacity: guessLocation ? 1 : 0.6,
+            }}
           >
             Submit Guess
           </button>
 
-          <button onClick={endGame}>Quit</button>
+          <button onClick={endGame}
+          style={{
+            zIndex: 1000,
+            padding: "8px 12px",
+            borderRadius: 8,
+            border: "none",
+            background: "#111",
+            color: "white",
+            cursor: "pointer",
+          }}
+          >Quit</button>
+          <button
+            onClick={() => setDistanceUnit(u => (u === "km" ? "mi" : "km"))}
+            style={{
+              marginTop: 8,
+              zIndex: 1000,
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: "none",
+              background: "#222",
+              color: "white",
+              cursor: "pointer",
+              fontSize: 12,
+            }}
+          >
+            Show in {distanceUnit === "km" ? "Miles" : "KM"}
+          </button>
         </div>
       )}
       {gameMode === "revealed" && targetEvent && distance !== null && (
@@ -718,9 +763,22 @@ function submitGuess() {
             boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
             fontFamily: "system-ui",
           }}>
-          <h3>How close were you?</h3>
+          <div
+            onMouseDown={onMouseDown}
+            style={{
+              cursor: "grab",
+              padding: "6px 8px",
+              marginBottom: 8,
+              borderRadius: 6,
+              background: "rgba(0,0,0,0.05)",
+              fontWeight: 600,
+              userSelect: "none",
+            }}
+          >
+            How close were you?
+          </div>
 
-          <p>Distance: {(distance / 1000).toFixed(1)} km</p>
+          <p>Distance: {distance ? formatDistance(distance) : ""}</p>
 
           <p style={{ marginTop: 10 }}>
             Now reflect on the event:
@@ -735,6 +793,15 @@ function submitGuess() {
 
           <button
             onClick={() => setGameMode("completed")}
+            style={{
+              zIndex: 1000,
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "none",
+              background: "#111",
+              color: "white",
+              cursor: "pointer",
+            }}
           >
             Finish
           </button>
@@ -752,15 +819,39 @@ function submitGuess() {
             padding: 12,
             borderRadius: 12,
             boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-            fontFamily: "system-ui",}}>
-          <h3>Completed!</h3>
+            fontFamily: "system-ui",}}
+          >
+                    <div
+            onMouseDown={onMouseDown}
+            style={{
+              cursor: "grab",
+              padding: "6px 8px",
+              marginBottom: 8,
+              borderRadius: 6,
+              background: "rgba(0,0,0,0.05)",
+              fontWeight: 600,
+              userSelect: "none",
+            }}
+          >
+            Completed!
+          </div>
 
-          <p>Distance: {(distance! / 1000).toFixed(1)} km</p>
+          <p>Distance: {distance ? formatDistance(distance) : ""}</p>
 
           <p><b>Your reflection:</b></p>
           <p>{userAnswer}</p>
 
-          <button onClick={() => endGame()}>
+          <button onClick={() => endGame()}
+            style={{
+              zIndex: 1000,
+              padding: "8px 12px",
+              borderRadius: 8,
+              border: "none",
+              background: "#111",
+              color: "white",
+              cursor: "pointer",
+            }}
+            >
             End Game
           </button>
         </div>
@@ -821,7 +912,10 @@ function submitGuess() {
           }}
         >
         <button
-          onClick={() => setSelectedMarker(null)}
+          onClick={() => {
+            if (gameMode === "revealed") return;
+            setSelectedMarker(null);
+          }}
           style={{
             position: "absolute",
             top: 16,
@@ -834,7 +928,7 @@ function submitGuess() {
             fontSize: 12,
           }}
         >
-          ✕
+          {gameMode === "revealed" ? "🔒" : "✕"}
         </button>
 
           <h2 style={{ marginBottom: 16, fontSize: 18 }}>Events at this location</h2>

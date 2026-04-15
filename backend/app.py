@@ -19,6 +19,7 @@ def get_events(year):
             he.id,
             he.title,
             he.description,
+            he.category,
             he.start_year,
             he.start_month,
             he.start_day,
@@ -72,6 +73,7 @@ def get_events(year):
             "end_year": r.end_year,
             "end_month": r.end_month,
             "end_day": r.end_day,
+            "category": r.category,
             "sources": sources_by_event.get(r.id, [])
         }
         events_by_location[coords].append(event_data)

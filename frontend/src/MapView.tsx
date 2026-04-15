@@ -4,7 +4,7 @@ import type { Feature } from "geojson";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "./MapView.css";
-import { useRef, useEffect, useState } from "react";
+import { useRef, useEffect, useState, useMemo } from "react";
 import TimeSlider from "./TimeSlider";
 
 interface MapViewProps {
@@ -106,6 +106,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const [markersVisible, setMarkersVisible] = useState(true);
   const [bestTime, setBestTime] = useState<number | null>(null);
   const [gamePos, setGamePos] = useState({ x: 40, y: 100 });
+  const [activeCategories, setActiveCategories] = useState<string[]>([]);
   
 
   // Stuff to allow user to drag the game prompt around the screen while playing
@@ -258,12 +259,68 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
     }
   };
 
+  // Categories for filtering events
+  const categories = [
+    "political",
+    "technological",
+    "ecological",
+    "space",
+    "legal",
+    "disaster",
+    "cultural",
+    "territorial",
+    "economic",
+  ];
+
+  const categoryColors: Record<string, string> = {
+    political: "#3b82f6",
+    technological: "#22c55e",
+    ecological: "#10b981",
+    space: "#6366f1",
+    legal: "#a855f7",
+    disaster: "#ef4444",
+    cultural: "#ec4899",
+    territorial: "#f59e0b",
+    economic: "#eab308",
+  };
+
+  // Filter events based on active categories; if none active, show all
+  const filteredEventsGeoJSON = useMemo(() => {
+    if (!events) return null;
+
+    if (activeCategories.length === 0) return events;
+
+    return {
+      ...events,
+      features: events.features.filter((feature: any) => {
+        const featureEvents = feature.properties?.events || [];
+        return featureEvents.some((e: any) =>
+          activeCategories.includes(e.category)
+        );
+      }),
+    };
+  }, [events, activeCategories]);
+
+  // Update event layer when filters change
+  useEffect(() => {
+  if (eventLayerRef.current && filteredEventsGeoJSON) {
+    eventLayerRef.current.clearLayers();
+    eventLayerRef.current.addData(
+      filteredEventsGeoJSON as GeoJSON.GeoJsonObject
+    );
+  }
+}, [filteredEventsGeoJSON]);
+
   // Sort events by date for news feed
   const sortedEvents = (() => {
   if (!events?.features) return [];
 
   return events.features
     .flatMap((feature: any) => feature.properties?.events || [])
+    .filter((event: any) => {
+      if (activeCategories.length === 0) return true;
+      return activeCategories.includes(event.category);
+    })
     .sort((a: any, b: any) => {
       const dateA = new Date(
         a.start_year,
@@ -282,10 +339,14 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
 })();
   return (
     <div style={{ position: "relative", height: "100vh", overflow: "hidden" }}>
+      {/* Main map */}
       <MapContainer 
       center={[20, 0]} zoom={2} 
       style={{ height: "100%", width: "100%" }} 
-      ref ={mapRef}>
+      ref ={mapRef}
+      maxBounds ={[[ -90, -180], [90, 180]]}
+      maxBoundsViscosity={1.0}
+      >
         {/* Tile Layer to select satellite or normal mode */}
         <TileLayer
           attribution={
@@ -305,7 +366,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
         {markersVisible && (
           <GeoJSON
             ref={eventLayerRef}
-            data={events as GeoJSON.GeoJsonObject}
+            data={filteredEventsGeoJSON as GeoJSON.GeoJsonObject}
             onEachFeature={onEachEventFeature as any}
           />
         )}
@@ -329,6 +390,90 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           {mapMode === "standard" ? "Satellite" : "Map"}
         </button>
       </MapContainer>
+      {/* Filters */}
+      <div
+        style={{
+          position: "absolute",
+          top: "45%",
+          right: 0,
+          transform: "translateY(-50%)",
+          zIndex: 1000,
+          width: 175,
+          padding: "8px 8px",
+          borderTopLeftRadius: 14,
+          borderBottomLeftRadius: 14,
+          background: "rgba(255,255,255,0.92)",
+          backdropFilter: "blur(14px)",
+          WebkitBackdropFilter: "blur(14px)",
+          boxShadow: "-10px 0 25px rgba(0,0,0,0.12)",
+          fontFamily: "system-ui, -apple-system, sans-serif",
+        }}
+      >
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            marginBottom: 8,
+            textAlign: "center",
+            opacity: 0.7,
+            letterSpacing: "0.04em",
+          }}
+        >
+          Filters
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+          {categories.map((cat) => {
+            const active = activeCategories.includes(cat);
+            return (
+              <button
+                key={cat}
+                onClick={() => {
+                  setActiveCategories((prev) =>
+                    prev.includes(cat)
+                      ? prev.filter((c) => c !== cat)
+                      : [...prev, cat]
+                  );
+                }}
+                style={{
+                  width: "100%",
+                  padding: "6px 8px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(0,0,0,0.06)",
+                  cursor: "pointer",
+                  fontSize: 11,
+                  textTransform: "capitalize",
+                  transition: "all 0.15s ease",
+                  background: active
+                    ? categoryColors[cat]
+                    : "rgba(255,255,255,0.75)",
+
+                  color: active ? "white" : "#222",
+
+                  boxShadow: active
+                    ? `0 6px 16px ${categoryColors[cat]}55`
+                    : "0 2px 6px rgba(0,0,0,0.06)",
+
+                  transform: active ? "translateY(-1px)" : "translateY(0)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "rgba(255,255,255,0.95)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!active) {
+                    (e.currentTarget as HTMLButtonElement).style.background =
+                      "rgba(255,255,255,0.75)";
+                  }
+                }}
+              >
+                {cat}
+              </button>
+            );
+          })}
+        </div>
+      </div>
       {/* Toggle News Feed Tab */}
       <div
           onClick={() => {
@@ -434,6 +579,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           </div>
         ))}
       </div>
+      {/* Game */}
       {gameMode === "idle" && (
         <button
           onClick={startGame}
@@ -453,7 +599,8 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           Start Game
         </button>
       )}
-          <button
+    {/* Show/Hide Markers */}
+    <button
       onClick={() => setMarkersVisible(v => !v)}
       style={{
         position: "absolute",
@@ -470,6 +617,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
     >
       {markersVisible ? "Hide Markers" : "Show Markers"}
     </button>
+    {/* Game Prompt */}
       {gameMode === "active" && targetEvent && (
         <div
           style={{
@@ -675,7 +823,22 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
             onMouseLeave={(e) => {
               e.currentTarget.style.transform = "translateY(0)";
               }}>
+
               <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>{event.title}</h3>
+              <div
+                style={{
+                  display: "inline-block",
+                  padding: "3px 8px",
+                  borderRadius: 12,
+                  fontSize: 11,
+                  background: categoryColors[event.category] || "#111",
+                  color: "white",
+                  marginBottom: 6,
+                  textTransform: "capitalize",
+                }}
+            >
+              {event.category}
+            </div>
               <p style={{ margin: "0 0 8px", fontSize: 13, color: "#666" }}>
                 {[
                   event.start_month ? event.start_month.toString().padStart(2, "0") : null,

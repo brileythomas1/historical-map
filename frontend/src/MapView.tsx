@@ -1,4 +1,4 @@
-import { MapContainer, TileLayer, GeoJSON, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, GeoJSON, useMap, Marker, Polyline } from "react-leaflet";
 import type { GeoJSONFeatureCollection } from "./types";
 import type { Feature } from "geojson";
 import L from "leaflet";
@@ -76,6 +76,24 @@ function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
   return null;
 }
 
+function MapClickHandler({ onClick }: { onClick: (latlng: L.LatLng) => void }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const handler = (e: L.LeafletMouseEvent) => {
+      onClick(e.latlng);
+    };
+
+    map.on("click", handler);
+
+    return () => {
+      map.off("click", handler);
+    };
+  }, [map, onClick]);
+
+  return null;
+}
+
 // Color country borders based on country name
 const borderStyle = (feature: Feature) => {
   const countryName = feature.properties?.country ?? "Unknown";
@@ -99,15 +117,20 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   const [selectedMarker, setSelectedMarker] = useState<null | any>(null);
   const [expandedImage, setExpandedImage] = useState<null | { url: string; title: string }>(null);
   const [newsFeed, setNewsFeed] = useState(false);
-  const [gameMode, setGameMode] = useState<"idle" | "active" | "completed">("idle");
+  const [gameMode, setGameMode] = useState<"idle" | "guessing" | "revealed" | "completed" >("idle");
   const [targetEvent, setTargetEvent] = useState<any | null>(null);
-  const [elapsed, setElapsed] = useState<number>(0);
   const [userAnswer, setUserAnswer] = useState("");
   const [markersVisible, setMarkersVisible] = useState(true);
-  const [bestTime, setBestTime] = useState<number | null>(null);
   const [gamePos, setGamePos] = useState({ x: 40, y: 100 });
   const [activeCategories, setActiveCategories] = useState<string[]>([]);
-  
+  const [guessLocation, setGuessLocation] = useState<L.LatLng | null>(null);
+  const [actualLocation, setActualLocation] = useState<L.LatLng | null>(null);
+  const [distance, setDistance] = useState<number | null>(null);
+
+  // Reset marker visibility after game is done
+  useEffect(() => {
+    if (gameMode === "idle") setMarkersVisible(true);
+  }, [gameMode]);
 
   // Stuff to allow user to drag the game prompt around the screen while playing
   function onMouseDown(e: React.MouseEvent) {
@@ -152,52 +175,45 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
     return allEvents[Math.floor(Math.random() * allEvents.length)];
   }
 
-  function startGame() {
+function startGame() {
     const event = getRandomEvent();
     if (!event) return;
 
+    const result = findEventLocation(event.id);
+    if (!result) return;
+
+    const [lng, lat] = result.geometry.coordinates;
+
     setTargetEvent(event);
-    setGameMode("active");
+    setActualLocation(new L.LatLng(lat, lng));
+    setGuessLocation(null);
+    setDistance(null);
     setUserAnswer("");
 
-    const now = Date.now();
-    setElapsed(0);
+    setGameMode("guessing");
 
-    const interval = setInterval(() => {
-      setElapsed(Date.now() - now);
-    }, 100);
-
-    // store interval on window for cleanup simplicity
-    (window as any).__gameTimer = interval;
+    setMarkersVisible(false);
   }
 
-  function quitGame() {
-  // stop timer
-  if ((window as any).__gameTimer) {
-    clearInterval((window as any).__gameTimer);
-    (window as any).__gameTimer = null;
+function endGame() {
+    setGameMode("idle");
+    setGuessLocation(null);
+    setActualLocation(null);
+    setDistance(null);
+    setTargetEvent(null);
   }
 
-  // reset game state
-  setGameMode("idle");
-  setTargetEvent(null);
-  setUserAnswer("");
-  setElapsed(0);
-}
 
-  // End game and show results
-  function submitGame() {
-    setGameMode("completed");
+function submitGuess() {
+    if (!guessLocation || !actualLocation) return;
 
-    if ((window as any).__gameTimer) {
-      clearInterval((window as any).__gameTimer);
-    }
+    const dist = guessLocation.distanceTo(actualLocation);
 
-  setBestTime(prevBest => {
-    if (prevBest === null) return elapsed;
-    return Math.min(prevBest, elapsed);
-  });
-}
+    setDistance(dist);
+    setGameMode("revealed");
+
+    mapRef.current?.flyTo(actualLocation, 5, { duration: 1 });
+  }
 
   // Iterate through events to find the one with the matching ID and return its location
   function findEventLocation(eventId: string) {
@@ -303,13 +319,25 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
 
   // Update event layer when filters change
   useEffect(() => {
-  if (eventLayerRef.current && filteredEventsGeoJSON) {
-    eventLayerRef.current.clearLayers();
-    eventLayerRef.current.addData(
-      filteredEventsGeoJSON as GeoJSON.GeoJsonObject
-    );
+    if (eventLayerRef.current && filteredEventsGeoJSON) {
+      eventLayerRef.current.clearLayers();
+      eventLayerRef.current.addData(
+        filteredEventsGeoJSON as GeoJSON.GeoJsonObject
+      );
+    }
+  }, [filteredEventsGeoJSON]);
+
+  // When game mode switches to revealed, show event details in sidebar
+  useEffect(() => {
+  if (gameMode === "revealed" && targetEvent) {
+    const result = findEventLocation(targetEvent.id);
+    if (!result) return;
+
+    setSelectedMarker({
+      events: [result.event],
+    });
   }
-}, [filteredEventsGeoJSON]);
+}, [gameMode, targetEvent]);
 
   // Sort events by date for news feed
   const sortedEvents = (() => {
@@ -344,9 +372,8 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
       center={[20, 0]} zoom={2} 
       style={{ height: "100%", width: "100%" }} 
       ref ={mapRef}
-      maxBounds ={[[ -90, -180], [90, 180]]}
-      maxBoundsViscosity={1.0}
       >
+        
         {/* Tile Layer to select satellite or normal mode */}
         <TileLayer
           attribution={
@@ -369,6 +396,20 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
             data={filteredEventsGeoJSON as GeoJSON.GeoJsonObject}
             onEachFeature={onEachEventFeature as any}
           />
+        )}
+        {gameMode === "guessing" && (
+          <MapClickHandler onClick={(latlng) => setGuessLocation(latlng)} />
+        )}
+        {(gameMode === "guessing" || gameMode === "revealed") && guessLocation && (
+          <Marker position={guessLocation} />
+        )}
+        {gameMode !== "guessing" && actualLocation && (
+          <>
+            <Marker position={actualLocation} />
+            {gameMode === "revealed" && guessLocation && actualLocation && (
+              <Polyline positions={[guessLocation, actualLocation]} />
+            )}
+          </>
         )}
         <button
           onClick={() =>
@@ -477,7 +518,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
       {/* Toggle News Feed Tab */}
       <div
           onClick={() => {
-            if (gameMode === "active") return;
+            if (gameMode === "guessing" || gameMode === "revealed") return;
             setNewsFeed(!newsFeed);
           }}
         style={{
@@ -618,7 +659,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
       {markersVisible ? "Hide Markers" : "Show Markers"}
     </button>
     {/* Game Prompt */}
-      {gameMode === "active" && targetEvent && (
+      {gameMode === "guessing" && targetEvent && (
         <div
           style={{
             position: "absolute",
@@ -651,83 +692,75 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
           <p><b>Year:</b> {targetEvent.start_year}</p>
           <p><b>Title:</b> {targetEvent.title}</p>
 
+          <p>Click the map to place your guess</p>
+
+          <button 
+            disabled={!guessLocation}
+            onClick={submitGuess}
+          >
+            Submit Guess
+          </button>
+
+          <button onClick={endGame}>Quit</button>
+        </div>
+      )}
+      {gameMode === "revealed" && targetEvent && distance !== null && (
+        <div style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            transform: `translate(${gamePos.x}px, ${gamePos.y}px)`,
+            zIndex: 2000,
+            width: 320,
+            background: "rgba(255,255,255,0.95)",
+            padding: 12,
+            borderRadius: 12,
+            boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
+            fontFamily: "system-ui",
+          }}>
+          <h3>How close were you?</h3>
+
+          <p>Distance: {(distance / 1000).toFixed(1)} km</p>
+
           <p style={{ marginTop: 10 }}>
-            ⏱ {(elapsed / 1000).toFixed(1)}s
+            Now reflect on the event:
           </p>
 
           <textarea
             value={userAnswer}
             onChange={(e) => setUserAnswer(e.target.value)}
             placeholder="What did you learn from the sources?"
-            style={{ width: "100%", height: 80, marginTop: 8 }}
-            maxLength = {1000}
+            style={{ width: "100%", height: 80 }}
           />
 
           <button
-            onClick={submitGame}
-            style={{
-              marginTop: 8,
-              width: "100%",
-              padding: 8,
-              borderRadius: 8,
-              background: "#111",
-              color: "white",
-              border: "none",
-            }}
+            onClick={() => setGameMode("completed")}
           >
-            Submit
+            Finish
           </button>
-          <button
-          onClick={quitGame}
-          style={{
-            marginTop: 8,
-            width: "100%",
-            padding: 8,
-            borderRadius: 8,
-            background: "#b00020",
-            color: "white",
-            border: "none",
-            cursor: "pointer",
-          }}
-        >
-          Quit Game
-        </button>
         </div>
       )}
-      {gameMode === "completed" && targetEvent && (
-        <div
-          style={{
+      {gameMode === "completed" && (
+        <div style={{
             position: "absolute",
-            top: 100,
-            left: 40,
+            top: 0,
+            left: 0,
+            transform: `translate(${gamePos.x}px, ${gamePos.y}px)`,
             zIndex: 2000,
             width: 320,
-            background: "white",
+            background: "rgba(255,255,255,0.95)",
             padding: 12,
             borderRadius: 12,
             boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-            fontFamily: "system-ui",
-          }}
-        >
+            fontFamily: "system-ui",}}>
           <h3>Completed!</h3>
-          <p>Time: {(elapsed / 1000).toFixed(1)}s</p>
-          <p>
-          <b>Best time:</b>{" "}
-          {bestTime !== null ? `${(bestTime / 1000).toFixed(1)}s` : "—"}
-          </p>
+
+          <p>Distance: {(distance! / 1000).toFixed(1)} km</p>
+
           <p><b>Your reflection:</b></p>
           <p>{userAnswer}</p>
 
-          <button onClick={() => setGameMode("idle")}             
-          style={{
-              marginTop: 8,
-              width: "100%",
-              padding: 8,
-              borderRadius: 8,
-              background: "#111",
-              color: "white",
-              border: "none",
-            }}>
+          <button onClick={() => endGame()}>
             End Game
           </button>
         </div>

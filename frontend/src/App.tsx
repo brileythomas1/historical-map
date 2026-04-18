@@ -58,7 +58,7 @@ useEffect(() => {
   // Fetch both events and borders in parallel, then set loading to false once both are done
   Promise.all([fetchEvents(), fetchBorders()]).finally(() => setLoading(false));
 
-  // Abort fetches if the year changes before they complete to avoid
+  // Abort fetches if the year changes before they complete to avoid race conditions
   return () => controller.abort();
 }, [debouncedYear]);
 

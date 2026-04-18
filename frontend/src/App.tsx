@@ -4,10 +4,11 @@ import type { GeoJSONFeatureCollection } from "./types";
 
 const API_URL = "http://127.0.0.1:5000";
 
-
+// Debounce hook to delay updates to the year until the user stops sliding for 100ms
 function useDebounce<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
+  // Update value after delay whenever the input value changes
   useEffect(() => {
     const handler = setTimeout(() => setDebouncedValue(value), delay);
     return () => clearTimeout(handler);
@@ -24,35 +25,14 @@ function App() {
   const [borders, setBorders] = useState<GeoJSONFeatureCollection | null>(null);
   const [loading, setLoading] = useState(false);
 
-  // Fetch events
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function fetchEvents() {
-      try {
-        setLoading(true);
-        const res = await fetch(`${API_URL}/events/${debouncedYear}`, {
-          signal: controller.signal,
-        });
-        const data = await res.json();
-        setEvents(data);
-      } catch (err: any) {
-        if (err.name === "AbortError") return; // ignore aborted fetch
-        console.error(err);
-      }
-    }
-
-    fetchEvents();
-
-    return () => controller.abort(); // cancel previous fetch on next effect
-  }, [debouncedYear]);
 
 useEffect(() => {
   const controller = new AbortController();
 
   async function fetchEvents() {
     try {
-      setLoading(true); // start loading
+      // Set loading to true to display spinner
+      setLoading(true);
       const res = await fetch(`${API_URL}/events/${debouncedYear}`, {
         signal: controller.signal,
       });
@@ -75,8 +55,10 @@ useEffect(() => {
     }
   }
 
+  // Fetch both events and borders in parallel, then set loading to false once both are done
   Promise.all([fetchEvents(), fetchBorders()]).finally(() => setLoading(false));
 
+  // Abort fetches if the year changes before they complete to avoid
   return () => controller.abort();
 }, [debouncedYear]);
 

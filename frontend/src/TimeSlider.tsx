@@ -11,6 +11,7 @@ function TimeSlider({ year, setYear }: TimeSliderProps) {
   const minYear = 1985;
   const maxYear = 1995;
 
+  // Auto-play effect
   useEffect(() => {
     if (!playing) return;
 
@@ -55,6 +56,7 @@ function TimeSlider({ year, setYear }: TimeSliderProps) {
       >
       {year}
       </div>
+        {/* Play/Pause Button */}
         <button
           onClick={() => setPlaying(!playing)}
           style={{
@@ -71,6 +73,7 @@ function TimeSlider({ year, setYear }: TimeSliderProps) {
           {playing ? "Pause" : "Play"}
         </button>
       </div>
+      {/* Year Slider */}
       <input
         type="range"
         min={minYear}

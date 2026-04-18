@@ -9,11 +9,13 @@ CORS(app)
 
 engine = create_engine(DATABASE_URL)
 
+# Get events for a given year
 @app.route("/events/<int:year>")
 def get_events(year):
     if year < 1985 or year > 1995:
         return jsonify({"error": "Year must be between 1985 and 1995"}), 400
 
+    # Fetch all relevant info for events in the given year
     query = text("""
         SELECT
             he.id,
@@ -32,14 +34,14 @@ def get_events(year):
           AND (he.end_year IS NULL OR he.end_year >= :year)
     """)
 
-    # Fetch sources for events
+    # Fetch all sources
     sources_query = text("""
         SELECT es.event_id, s.id AS source_id, s.title, s.source_type, s.content_type, s.url, s.description
         FROM event_sources es
         JOIN sources s ON es.source_id = s.id
     """)
 
-    # Get our events and sources
+    # Execute queries
     with engine.connect() as conn:
         events_rows = conn.execute(query, {"year": year}).fetchall()
         sources_rows = conn.execute(sources_query).fetchall()
@@ -92,11 +94,14 @@ def get_events(year):
             "geometry": {"type": "Point", "coordinates": coords},
             "properties": {"events": events}
         })
+        # Note: sources are included in the event properties, so they will be part of the response for each event
 
     return jsonify({"type": "FeatureCollection", "features": features})
 
+# Get borders for a given year
 @app.route("/borders/<int:year>")
 def get_borders(year):
+    # Return borders with country name and gwcode as properties, and geometry as GeoJSON
     query = text("""
         SELECT json_build_object(
             'type', 'FeatureCollection',

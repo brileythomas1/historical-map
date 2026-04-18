@@ -7,6 +7,7 @@ import "./MapView.css";
 import { useRef, useEffect, useState, useMemo } from "react";
 import TimeSlider from "./TimeSlider";
 
+// Interface for everything passed into the MapView component
 interface MapViewProps {
   year: number;
   setYear: (year: number) => void;
@@ -30,8 +31,6 @@ function getCountryColor(country: string): string {
   return `hsl(${hash % 360}, 70%, 50%)`;  
 }
 
-
-
 // Sync mini-map view and draw rectangle for current main map bounds
 function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
   const miniMap = useMap();
@@ -39,11 +38,13 @@ function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
   useEffect(() => {
     if (!parentMap) return;
 
+    // Set initial view of mini-map to match main map, but zoomed out
     const sync = () => {
       miniMap.setView(parentMap.getCenter(), parentMap.getZoom() - 3);
     };
 
     sync();
+    // Update mini-map view whenever main map moves
     parentMap.on("move", sync);
 
     return () => {
@@ -54,12 +55,14 @@ function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
   useEffect(() => {
   if (!parentMap) return;
 
+  // Draw rectangle on mini-map to show current main map bounds
   const rect = L.rectangle(parentMap.getBounds(), {
     color: "#ff7800",
     weight: 1,
     fillOpacity: 0.1,
   }).addTo(miniMap);
 
+  // Update rectangle bounds whenever main map moves
   const updateRect = () => {
     rect.setBounds(parentMap.getBounds());
   };
@@ -76,6 +79,7 @@ function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
   return null;
 }
 
+// Component to handle clicks on the map and pass lat/lng back to parent
 function MapClickHandler({ onClick }: { onClick: (latlng: L.LatLng) => void }) {
   const map = useMap();
 
@@ -141,13 +145,14 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   return `${(meters / 1609.344).toFixed(1)} mi`;
 }
 
-  // Stuff to allow user to drag the game prompt around the screen while playing
+  // ALlow dragging of game prompt
   function onMouseDown(e: React.MouseEvent) {
     dragRef.current.dragging = true;
     dragRef.current.startX = e.clientX - gamePos.x;
     dragRef.current.startY = e.clientY - gamePos.y;
   }
 
+  // Update game prompt position as mouse moves if dragging is active
   function onMouseMove(e: MouseEvent) {
     if (!dragRef.current.dragging) return;
 
@@ -160,6 +165,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   function onMouseUp() {
     dragRef.current.dragging = false;
   }
+
 
   useEffect(() => {
     window.addEventListener("mousemove", onMouseMove);
@@ -175,6 +181,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
   function getRandomEvent() {
     if (!events?.features?.length) return null;
 
+    // Put all events from all features into a single array to select from
     const allEvents = events.features.flatMap(
       (f: any) => f.properties?.events || []
     );
@@ -198,9 +205,7 @@ function startGame() {
     setGuessLocation(null);
     setDistance(null);
     setUserAnswer("");
-
     setGameMode("guessing");
-
     setMarkersVisible(false);
   }
 
@@ -221,6 +226,7 @@ function submitGuess() {
     setDistance(dist);
     setGameMode("revealed");
 
+    // Fly to actual event location on map when guess is submitted
     mapRef.current?.flyTo(actualLocation, 5, { duration: 1 });
   }
 
@@ -310,6 +316,7 @@ function submitGuess() {
   };
 
   // Filter events based on active categories; if none active, show all
+  // useMemo to avoid unnecessary recalculations and map updates when filters change
   const filteredEventsGeoJSON = useMemo(() => {
     if (!events) return null;
 
@@ -354,6 +361,7 @@ function submitGuess() {
 
   return events.features
     .flatMap((feature: any) => feature.properties?.events || [])
+    // Apply category filters to news feed as well
     .filter((event: any) => {
       if (activeCategories.length === 0) return true;
       return activeCategories.includes(event.category);
@@ -392,13 +400,14 @@ function submitGuess() {
           }
           url={mapMode === "satellite" ? SATELLITE_URL : OSM_URL}
         />
+        {/* Borders and Events */}
         <GeoJSON
           ref={borderLayerRef}
           data={borders as GeoJSON.GeoJsonObject}
           style={borderStyle as any}
           onEachFeature={onEachBorderFeature as any}
         />
-
+        {/* Only display events if markers are visible */}
         {markersVisible && (
           <GeoJSON
             ref={eventLayerRef}
@@ -406,6 +415,7 @@ function submitGuess() {
             onEachFeature={onEachEventFeature as any}
           />
         )}
+        {/* Game Mode Functionality */}
         {gameMode === "guessing" && (
           <MapClickHandler onClick={(latlng) => setGuessLocation(latlng)} />
         )}
@@ -808,7 +818,8 @@ function submitGuess() {
         </div>
       )}
       {gameMode === "completed" && (
-        <div style={{
+        <div 
+          style={{
             position: "absolute",
             top: 0,
             left: 0,
@@ -819,21 +830,22 @@ function submitGuess() {
             padding: 12,
             borderRadius: 12,
             boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
-            fontFamily: "system-ui",}}
+            fontFamily: "system-ui",
+          }}
           >
-                    <div
-            onMouseDown={onMouseDown}
-            style={{
-              cursor: "grab",
-              padding: "6px 8px",
-              marginBottom: 8,
-              borderRadius: 6,
-              background: "rgba(0,0,0,0.05)",
-              fontWeight: 600,
-              userSelect: "none",
-            }}
+        <div
+          onMouseDown={onMouseDown}
+          style={{
+            cursor: "grab",
+            padding: "6px 8px",
+            marginBottom: 8,
+            borderRadius: 6,
+            background: "rgba(0,0,0,0.05)",
+            fontWeight: 600,
+            userSelect: "none",
+          }}
           >
-            Completed!
+          Completed!
           </div>
 
           <p>Distance: {distance ? formatDistance(distance) : ""}</p>
@@ -841,7 +853,8 @@ function submitGuess() {
           <p><b>Your reflection:</b></p>
           <p>{userAnswer}</p>
 
-          <button onClick={() => endGame()}
+          <button 
+            onClick={() => endGame()}
             style={{
               zIndex: 1000,
               padding: "8px 12px",
@@ -882,10 +895,10 @@ function submitGuess() {
               attributionControl={false}
               style={{ width: "100%", height: "100%" }}
             >
-              <TileLayer
-                url={mapMode === "satellite" ? SATELLITE_URL : OSM_URL}
-              />
-              <MiniMapBounds parentMap={mapRef.current} />
+            <TileLayer
+              url={mapMode === "satellite" ? SATELLITE_URL : OSM_URL}
+            />
+            <MiniMapBounds parentMap={mapRef.current} />
             </MapContainer>
           </div>
       )}
@@ -911,6 +924,8 @@ function submitGuess() {
             fontFamily: "system-ui, -apple-system, sans-serif",
           }}
         >
+        {/* Prevent user from closing sidebar when game is still going */}
+        {/* Force them to read sidebar so they can fill out reflection */}
         <button
           onClick={() => {
             if (gameMode === "revealed") return;
@@ -931,11 +946,13 @@ function submitGuess() {
           {gameMode === "revealed" ? "🔒" : "✕"}
         </button>
 
-          <h2 style={{ marginBottom: 16, fontSize: 18 }}>Events at this location</h2>
+          <h2 style={{ marginBottom: 16, fontSize: 18 }}>
+            Events at this location
+          </h2>
 
           {selectedMarker.events.map((event: any) => (
             <div 
-            key={event.id} 
+              key={event.id} 
               style={{
               marginBottom: 20,
               padding: 14,
@@ -945,13 +962,15 @@ function submitGuess() {
               border: "1px solid rgba(0,0,0,0.05)",
               }}
               onMouseEnter={(e) => {
-              e.currentTarget.style.transform = "translateY(-2px)";
+                e.currentTarget.style.transform = "translateY(-2px)";
               }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.transform = "translateY(0)";
-              }}>
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = "translateY(0)";
+              }}
+            >
 
               <h3 style={{ margin: "0 0 6px", fontSize: 16 }}>{event.title}</h3>
+
               <div
                 style={{
                   display: "inline-block",
@@ -963,9 +982,10 @@ function submitGuess() {
                   marginBottom: 6,
                   textTransform: "capitalize",
                 }}
-            >
+              >
               {event.category}
-            </div>
+              </div>
+
               <p style={{ margin: "0 0 8px", fontSize: 13, color: "#666" }}>
                 {[
                   event.start_month ? event.start_month.toString().padStart(2, "0") : null,
@@ -975,7 +995,10 @@ function submitGuess() {
                   .filter(Boolean)
                   .join("-")}
               </p>
-              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>{event.description}</p>
+
+              <p style={{ margin: 0, fontSize: 14, lineHeight: 1.5 }}>
+                {event.description}
+              </p>
 
               {event.sources &&
                 ["primary", "secondary"].map((type) => {
@@ -992,15 +1015,21 @@ function submitGuess() {
                         color: "#444",
                         fontWeight: 600,
                         letterSpacing: "0.02em",
-                      }}>
+                      }}
+                    >
                     {type.charAt(0).toUpperCase() + type.slice(1)} Sources</h4>
                       <ul style={{ paddingLeft: 16, margin: 0 }}>
                         {sourcesOfType.map((s: any) => (
                           <li key={s.id} style={{ marginBottom: 12 }}>
-                            <strong>{s.title}</strong>
+
+                            <strong>
+                              {s.title}
+                            </strong>
 
                             {s.description && (
-                              <p style={{ margin: "4px 0" }}>{s.description}</p>
+                              <p style={{ margin: "4px 0" }}>
+                                {s.description}
+                              </p>
                             )}
 
                             {/* Photo */}

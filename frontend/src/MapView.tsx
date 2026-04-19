@@ -660,6 +660,7 @@ function submitGuess() {
         </button>
       )}
     {/* Show/Hide Markers */}
+    {gameMode === "idle" && (
     <button
       onClick={() => setMarkersVisible(v => !v)}
       style={{
@@ -677,6 +678,7 @@ function submitGuess() {
     >
       {markersVisible ? "Hide Markers" : "Show Markers"}
     </button>
+    )}
     {/* Game Prompt */}
       {gameMode === "guessing" && targetEvent && (
         <div

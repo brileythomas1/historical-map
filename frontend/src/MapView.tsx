@@ -205,6 +205,7 @@ function startGame() {
     setGuessLocation(null);
     setDistance(null);
     setUserAnswer("");
+    setNewsFeed(false);
     setGameMode("guessing");
     setMarkersVisible(false);
   }

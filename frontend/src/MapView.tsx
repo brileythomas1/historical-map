@@ -53,33 +53,33 @@ function MiniMapBounds({ parentMap }: { parentMap: L.Map }) {
   }, [parentMap, miniMap]);
 
   useEffect(() => {
-  if (!parentMap) return;
+    if (!parentMap) return;
 
-  // Draw rectangle on mini-map to show current main map bounds
-  const rect = L.rectangle(parentMap.getBounds(), {
-    color: "#ff7800",
-    weight: 1,
-    fillOpacity: 0.1,
-  }).addTo(miniMap);
+    // Draw rectangle on mini-map to show current main map bounds
+    const rect = L.rectangle(parentMap.getBounds(), {
+      color: "#ff7800",
+      weight: 1,
+      fillOpacity: 0.1,
+    }).addTo(miniMap);
 
-  // Update rectangle bounds whenever main map moves
-  const updateRect = () => {
-    rect.setBounds(parentMap.getBounds());
-  };
+    // Update rectangle bounds whenever main map moves
+    const updateRect = () => {
+      rect.setBounds(parentMap.getBounds());
+    };
 
-  parentMap.on("move", updateRect);
+    parentMap.on("move", updateRect);
 
-  return () => {
-    parentMap.off("move", updateRect);
-    miniMap.removeLayer(rect);
-  };
-}, [parentMap, miniMap]);
+    return () => {
+      parentMap.off("move", updateRect);
+      miniMap.removeLayer(rect);
+    };
+  }, [parentMap, miniMap]);
 
 
   return null;
 }
 
-// Component to handle clicks on the map and pass lat/lng back to parent
+// Component to handle clicks on the map and perform some function with the clicked lat/lng
 function MapClickHandler({ onClick }: { onClick: (latlng: L.LatLng) => void }) {
   const map = useMap();
 
@@ -139,11 +139,11 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
 
   // Convert distance to selected unit and format for display
   function formatDistance(meters: number) {
-  if (distanceUnit === "km") {
-    return `${(meters / 1000).toFixed(1)} km`;
+    if (distanceUnit === "km") {
+      return `${(meters / 1000).toFixed(1)} km`;
+    }
+    return `${(meters / 1609.344).toFixed(1)} mi`;
   }
-  return `${(meters / 1609.344).toFixed(1)} mi`;
-}
 
   // ALlow dragging of game prompt
   function onMouseDown(e: React.MouseEvent) {
@@ -183,7 +183,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
 
     // Put all events from all features into a single array to select from
     const allEvents = events.features.flatMap(
-      (f: any) => f.properties?.events || []
+      (feature: any) => feature.properties?.events || []
     );
 
     if (!allEvents.length) return null;
@@ -191,7 +191,7 @@ function MapView({ year, setYear, events, borders }: MapViewProps) {
     return allEvents[Math.floor(Math.random() * allEvents.length)];
   }
 
-function startGame() {
+  function startGame() {
     const event = getRandomEvent();
     if (!event) return;
 
@@ -210,7 +210,7 @@ function startGame() {
     setMarkersVisible(false);
   }
 
-function endGame() {
+  function endGame() {
     setGameMode("idle");
     setGuessLocation(null);
     setActualLocation(null);
@@ -218,8 +218,7 @@ function endGame() {
     setTargetEvent(null);
   }
 
-
-function submitGuess() {
+  function submitGuess() {
     if (!guessLocation || !actualLocation) return;
 
     const dist = guessLocation.distanceTo(actualLocation);
@@ -247,9 +246,8 @@ function submitGuess() {
       };
     }
   }
-
-  return null;
-}
+    return null;
+  }
 
   // ESC key support for closing expanded images
   useEffect(() => {
@@ -346,43 +344,43 @@ function submitGuess() {
 
   // When game mode switches to revealed, show event details in sidebar
   useEffect(() => {
-  if (gameMode === "revealed" && targetEvent) {
-    const result = findEventLocation(targetEvent.id);
-    if (!result) return;
+    if (gameMode === "revealed" && targetEvent) {
+      const result = findEventLocation(targetEvent.id);
+      if (!result) return;
 
-    setSelectedMarker({
-      events: [result.event],
-    });
-  }
-}, [gameMode, targetEvent]);
+      setSelectedMarker({
+        events: [result.event],
+      });
+    }
+  }, [gameMode, targetEvent]);
 
   // Sort events by date for news feed
   const sortedEvents = (() => {
-  if (!events?.features) return [];
+    if (!events?.features) return [];
 
-  return events.features
-    .flatMap((feature: any) => feature.properties?.events || [])
-    // Apply category filters to news feed as well
-    .filter((event: any) => {
-      if (activeCategories.length === 0) return true;
-      return activeCategories.includes(event.category);
-    })
-    .sort((a: any, b: any) => {
-      const dateA = new Date(
-        a.start_year,
-        (a.start_month || 1) - 1,
-        a.start_day || 1
-      ).getTime();
+    return events.features
+      .flatMap((feature: any) => feature.properties?.events || [])
+      // Apply category filters to news feed as well
+      .filter((event: any) => {
+        if (activeCategories.length === 0) return true;
+        return activeCategories.includes(event.category);
+      })
+      .sort((a: any, b: any) => {
+        const dateA = new Date(
+          a.start_year,
+          (a.start_month || 1) - 1,
+          a.start_day || 1
+        ).getTime();
 
-      const dateB = new Date(
-        b.start_year,
-        (b.start_month || 1) - 1,
-        b.start_day || 1
-      ).getTime();
+        const dateB = new Date(
+          b.start_year,
+          (b.start_month || 1) - 1,
+          b.start_day || 1
+        ).getTime();
 
-      return dateA - dateB;
-    });
-})();
+        return dateA - dateB;
+      });
+  })();
   return (
     <div style={{ position: "relative", height: "100vh", overflow: "hidden" }}>
       {/* Main map */}
@@ -604,23 +602,23 @@ function submitGuess() {
               border: "1px solid rgba(0,0,0,0.05)",
             }}
             onClick={() => {
-            const result = findEventLocation(event.id);
-            if (!result || !mapRef.current) return;
+              const result = findEventLocation(event.id);
+              if (!result || !mapRef.current) return;
 
-            setSelectedMarker({
-              events: [result.event],
-            });
-
-            {/* Fly to event location on map when clicking news feed item */}
-            const coords = result.geometry?.coordinates;
-
-            if (coords) {
-              const [lng, lat] = coords;
-              mapRef.current.flyTo([lat, lng], 5, {
-                duration: 0.4,
+              setSelectedMarker({
+                events: [result.event],
               });
-            }
-          }}
+
+              {/* Fly to event location on map when clicking news feed item */}
+              const coords = result.geometry?.coordinates;
+
+              if (coords) {
+                const [lng, lat] = coords;
+                mapRef.current.flyTo([lat, lng], 5, {
+                  duration: 0.4,
+                });
+              }
+            }}
           >
             <h3 style={{ margin: "0 0 4px", fontSize: 14 }}>
               {event.title}
@@ -662,23 +660,23 @@ function submitGuess() {
       )}
     {/* Show/Hide Markers */}
     {gameMode === "idle" && (
-    <button
-      onClick={() => setMarkersVisible(v => !v)}
-      style={{
-        position: "absolute",
-        top: 120,
-        right: 20,
-        zIndex: 1000,
-        padding: "8px 12px",
-        borderRadius: 8,
-        border: "none",
-        background: "#111",
-        color: "white",
-        cursor: "pointer",
-      }}
-    >
-      {markersVisible ? "Hide Markers" : "Show Markers"}
-    </button>
+      <button
+        onClick={() => setMarkersVisible(v => !v)}
+        style={{
+          position: "absolute",
+          top: 120,
+          right: 20,
+          zIndex: 1000,
+          padding: "8px 12px",
+          borderRadius: 8,
+          border: "none",
+          background: "#111",
+          color: "white",
+          cursor: "pointer",
+        }}
+      >
+        {markersVisible ? "Hide Markers" : "Show Markers"}
+      </button>
     )}
     {/* Game Prompt */}
       {gameMode === "guessing" && targetEvent && (
@@ -743,7 +741,8 @@ function submitGuess() {
             color: "white",
             cursor: "pointer",
           }}
-          >Quit</button>
+          >Quit
+          </button>
           <button
             onClick={() => setDistanceUnit(u => (u === "km" ? "mi" : "km"))}
             style={{
@@ -775,7 +774,8 @@ function submitGuess() {
             borderRadius: 12,
             boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
             fontFamily: "system-ui",
-          }}>
+          }}
+        >
           <div
             onMouseDown={onMouseDown}
             style={{
@@ -835,18 +835,18 @@ function submitGuess() {
             boxShadow: "0 10px 30px rgba(0,0,0,0.2)",
             fontFamily: "system-ui",
           }}
-          >
-        <div
-          onMouseDown={onMouseDown}
-          style={{
-            cursor: "grab",
-            padding: "6px 8px",
-            marginBottom: 8,
-            borderRadius: 6,
-            background: "rgba(0,0,0,0.05)",
-            fontWeight: 600,
-            userSelect: "none",
-          }}
+        >
+          <div
+            onMouseDown={onMouseDown}
+            style={{
+              cursor: "grab",
+              padding: "6px 8px",
+              marginBottom: 8,
+              borderRadius: 6,
+              background: "rgba(0,0,0,0.05)",
+              fontWeight: 600,
+              userSelect: "none",
+            }}
           >
           Completed!
           </div>
@@ -867,7 +867,7 @@ function submitGuess() {
               color: "white",
               cursor: "pointer",
             }}
-            >
+          >
             End Game
           </button>
         </div>
@@ -1019,67 +1019,67 @@ function submitGuess() {
                         fontWeight: 600,
                         letterSpacing: "0.02em",
                       }}
-                    >
-                    {type.charAt(0).toUpperCase() + type.slice(1)} Sources</h4>
-                      <ul style={{ paddingLeft: 16, margin: 0 }}>
-                        {sourcesOfType.map((s: any) => (
-                          <li key={s.id} style={{ marginBottom: 12 }}>
+                      >
+                      {type.charAt(0).toUpperCase() + type.slice(1)} Sources</h4>
+                        <ul style={{ paddingLeft: 16, margin: 0 }}>
+                          {sourcesOfType.map((s: any) => (
+                            <li key={s.id} style={{ marginBottom: 12 }}>
 
-                            <strong>
-                              {s.title}
-                            </strong>
+                              <strong>
+                                {s.title}
+                              </strong>
 
-                            {s.description && (
-                              <p style={{ margin: "4px 0" }}>
-                                {s.description}
-                              </p>
-                            )}
-
-                            {/* Photo */}
-                            {s.content_type === "photo" && (
-                              <img
-                                src={s.url}
-                                alt={s.title}
-                                style={{
-                                  maxWidth: "100%",
-                                  borderRadius: 8,
-                                  marginTop: 6,
-                                  cursor: "pointer",
-                                  transition: "0.2s",
-                                }}
-                                onClick={() =>
-                                  setExpandedImage({ url: s.url, title: s.title })
-                                }
-                              />
-                            )}
-
-                            {/* Video (currently Youtube only) */}
-                            {s.content_type === "video" && (
-                              <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden" }}>
-                                <iframe
-                                  width="100%"
-                                  height="200"
-                                  src={`https://www.youtube.com/embed/${s.url}`}
-                                  title={s.title}
-                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                  allowFullScreen
-                                />
-                              </div>
-                            )}
-
-                            {/* Other (shouldn't happen but just in case) */}
-                            {s.content_type !== "photo" &&
-                              s.content_type !== "video" && (
-                                <a
-                                  href={s.url}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
-                                  View Source
-                                </a>
+                              {s.description && (
+                                <p style={{ margin: "4px 0" }}>
+                                  {s.description}
+                                </p>
                               )}
-                          </li>
-                        ))}
+
+                              {/* Photo */}
+                              {s.content_type === "photo" && (
+                                <img
+                                  src={s.url}
+                                  alt={s.title}
+                                  style={{
+                                    maxWidth: "100%",
+                                    borderRadius: 8,
+                                    marginTop: 6,
+                                    cursor: "pointer",
+                                    transition: "0.2s",
+                                  }}
+                                  onClick={() =>
+                                    setExpandedImage({ url: s.url, title: s.title })
+                                  }
+                                />
+                              )}
+
+                              {/* Video (currently Youtube only) */}
+                              {s.content_type === "video" && (
+                                <div style={{ marginTop: 8, borderRadius: 8, overflow: "hidden" }}>
+                                  <iframe
+                                    width="100%"
+                                    height="200"
+                                    src={`https://www.youtube.com/embed/${s.url}`}
+                                    title={s.title}
+                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                    allowFullScreen
+                                  />
+                                </div>
+                              )}
+
+                              {/* Other (shouldn't happen but just in case) */}
+                              {s.content_type !== "photo" &&
+                                s.content_type !== "video" && (
+                                  <a
+                                    href={s.url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                  >
+                                    View Source
+                                  </a>
+                                )}
+                            </li>
+                          ))}
                       </ul>
                     </div>
                   );

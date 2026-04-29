@@ -19,31 +19,49 @@ Step 1: Download and install the above components.
 
 Step 2: To set up the database, run these command in the terminal.
 
-```createdb historical_map```
+```
+createdb historical_map
 
-```psql -d historical_map -f map_db.sql```
+psql -d historical_map -f map_db.sql
+```
 
-Step 3: Set up Python dependencies.
+Step 3 (Optional): Create Python virtual environment.
 
-```pip3.11 install -r backend/requirements.txt```
+```
+python3 -m venv .venv
 
-Step 4: Install dependencies for Node.
+source .venv/bin/activate
+```
 
-```cd frontend```
+Step 4: Install Python dependencies.
 
-```npm install```
+```
+pip3 install -r backend/requirements.txt
+```
 
-Step 5: Run Node to start the frontend.
+Step 5: Install dependencies for Node.
 
-```npm run dev```
+```
+cd frontend
 
-Step 6: Open a separate terminal and run these commands to start the backend.
+npm install
+```
 
-```cd backend```
+Step 6: Run Node to start the frontend.
 
-```python3.11 app.py```
+```
+npm run dev
+```
 
-Step 7: Navigate to the URL displayed in the terminal after Step 5 to view the app.
+Step 7: Open a separate terminal and run these commands to start the backend.
+
+```
+cd backend
+
+python3 app.py
+```
+
+Step 8: Navigate to the URL displayed in the terminal after Step 5 to view the app.
 
 ## Acknowledgements
 Credit to ETH Zurich for their work in compiling the [CShapes 2.0 dataset](https://icr.ethz.ch/data/cshapes/), which this project made ample use of in its own database.
